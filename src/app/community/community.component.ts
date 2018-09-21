@@ -215,7 +215,8 @@ export class CommunityComponent implements OnInit, AfterViewInit, OnDestroy {
 
   getChildPlanet(url: string) {
     this.dialogsListService.getListAndColumns('communityregistrationrequests',
-    { 'registrationRequest': 'accepted' }, { domain: url })
+    { 'registrationRequest': 'accepted' }, url)
+    .pipe(takeUntil(this.onDestroy$))
     .subscribe((planets) => {
       const data = {
         disableSelection: true,

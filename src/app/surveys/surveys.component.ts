@@ -1,7 +1,7 @@
-import { Component, OnInit, ViewChild, AfterViewInit } from '@angular/core';
+import { Component, OnInit, ViewChild, AfterViewInit, OnDestroy } from '@angular/core';
 import { Router, ActivatedRoute } from '@angular/router';
 import { MatTableDataSource, MatSort, MatPaginator, MatDialog, MatDialogRef } from '@angular/material';
-import { forkJoin } from 'rxjs';
+import { forkJoin, Subject } from 'rxjs';
 import { CouchService } from '../shared/couchdb.service';
 import { filterSpecificFields } from '../shared/table-helpers';
 import { DialogsListService } from '../shared/dialogs/dialogs-list.service';
@@ -9,17 +9,19 @@ import { DialogsListComponent } from '../shared/dialogs/dialogs-list.component';
 import { SubmissionsService } from '../submissions/submissions.service';
 import { PlanetMessageService } from '../shared/planet-message.service';
 import { UserService } from '../shared/user.service';
+import { takeUntil } from 'rxjs/operators';
 
 @Component({
   'templateUrl': './surveys.component.html'
 })
-export class SurveysComponent implements OnInit, AfterViewInit {
+export class SurveysComponent implements OnInit, AfterViewInit, OnDestroy {
 
   surveys = new MatTableDataSource();
   @ViewChild(MatSort) sort: MatSort;
   @ViewChild(MatPaginator) paginator: MatPaginator;
   displayedColumns = [ 'name', 'action' ];
   dialogRef: MatDialogRef<DialogsListComponent>;
+  private onDestroy$ = new Subject<void>();
 
   constructor(
     private couchService: CouchService,
@@ -44,6 +46,11 @@ export class SurveysComponent implements OnInit, AfterViewInit {
     this.surveys.paginator = this.paginator;
   }
 
+  ngOnDestroy() {
+    this.onDestroy$.next();
+    this.onDestroy$.complete();
+  }
+
   getSurveys() {
     return this.couchService.findAll('exams', { 'selector': { 'type': 'surveys' } });
   }
@@ -64,7 +71,7 @@ export class SurveysComponent implements OnInit, AfterViewInit {
     forkJoin([
       this.dialogsListService.getListAndColumns('_users'),
       this.dialogsListService.getListAndColumns('child_users')
-    ]).subscribe(responses => {
+    ]).pipe(takeUntil(this.onDestroy$)).subscribe(responses => {
       const response = responses.reduce((fullArray, array) => ({
         tableData: [ ...fullArray.tableData, ...array.tableData ],
         columns: [ ...array.columns ]
